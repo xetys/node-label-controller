@@ -2,7 +2,7 @@ package main
 
 import (
 	"flag"
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	watch2 "k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog"
@@ -17,25 +17,22 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-type patchValue struct {
-	Op    string `json:"op"`
-	Path  string `json:"path"`
-	Value string `json:"value"`
-}
 type Controller struct {
 	clientset *kubernetes.Clientset
 	watch     watch2.Interface
 }
 
+// NewController creates a new instance of this controller
 func NewController(clientset *kubernetes.Clientset) *Controller {
 	return &Controller{clientset: clientset}
 }
 
+// Run starts the watch cycle
 func (c *Controller) Run() error {
 	var err error
 
 	klog.Info("Starting node label controller, watching node events...")
-	c.watch, err = c.clientset.CoreV1().Nodes().Watch(meta_v1.ListOptions{})
+	c.watch, err = c.clientset.CoreV1().Nodes().Watch(metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -60,6 +57,7 @@ func (c *Controller) Run() error {
 	return nil
 }
 
+// SetupCloseHandler installs a signal handler for a clean exit
 func (c *Controller) SetupCloseHandler(stop chan struct{}) chan struct{} {
 	sigChan := make(chan os.Signal, 2)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
@@ -72,6 +70,7 @@ func (c *Controller) SetupCloseHandler(stop chan struct{}) chan struct{} {
 	return stop
 }
 
+// handleAddedNode takes added nodes and labels it if it doesn't have the desired label but is a Container Linux node
 func (c *Controller) handleAddedNode(node *v1.Node) error {
 	klog.Infof("handling node %s", node.Name)
 
@@ -88,6 +87,8 @@ func (c *Controller) handleAddedNode(node *v1.Node) error {
 	operatingSystem := node.Status.NodeInfo.OSImage
 	if strings.Contains(operatingSystem, "Container Linux") {
 		klog.Infof("node %s is running %s, labeling...", node.Name, operatingSystem)
+
+		// add new label to the node
 		node.Labels["kubermatic.io/uses-container-linux"] = "true"
 		_, err := c.clientset.CoreV1().Nodes().Update(node)
 		if err != nil {
@@ -100,6 +101,7 @@ func (c *Controller) handleAddedNode(node *v1.Node) error {
 	return nil
 }
 
+// homeDir retrieves the users home dir across different OS'
 func homeDir() string {
 	if h := os.Getenv("HOME"); h != "" {
 		return h
@@ -107,6 +109,7 @@ func homeDir() string {
 	return os.Getenv("USERPROFILE") // windows
 }
 
+// K8SConfig tries to create an in-cluster config first, and falls back to flag-oriented and default kubeconfig creation
 func K8SConfig() (*rest.Config, error) {
 
 	var kubeconfig *string
@@ -154,6 +157,7 @@ func main() {
 		klog.Fatal(err)
 	}
 
+	// installing close handler
 	stop := make(chan struct{})
 	defer close(stop)
 	stop = controller.SetupCloseHandler(stop)
