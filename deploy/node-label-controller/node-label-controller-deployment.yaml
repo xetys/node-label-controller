@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: node-label-controller
+  name: node-label-controller
+  namespace: kubermatic
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: node-label-controller
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: node-label-controller
+    spec:
+      containers:
+      - image: xetys/node-label-controller:latest
+        name: node-label-controller
+        imagePullPolicy: Always
+      serviceAccount: node-label-controller
+      serviceAccountName: node-label-controller

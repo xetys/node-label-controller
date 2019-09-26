@@ -1,5 +1,11 @@
 package main
 
+/*
+This is a very straight forward implementation of a tiny controller. By using Watch on nodes, we get a very simple
+watch cycle, which lacks caching, rate-limiting and other advanced features. As node updates shouldn't occur as frequent
+like other resources, like pods, I have chosen this simple approach
+*/
+
 import (
 	"flag"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
